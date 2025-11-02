@@ -1,7 +1,7 @@
-pcall(function()
+local ok, err = pcall(function()
     local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
     local Window = OrionLib:MakeWindow({
-        Name = "🌙 Soliar Hub | By chat gpt",
+        Name = "🌙 Soliar Hub | Universal",
         HidePremium = false,
         SaveConfig = false,
         ConfigFolder = "SoliarHub"
@@ -56,29 +56,41 @@ pcall(function()
     })
 
     local noclipEnabled = false
+    local noclipConn = nil
+    local noclipCharAncestryConn = nil
+
     Main:AddToggle({
         Name = "🚫 Noclip",
         Default = false,
         Callback = function(state)
             noclipEnabled = state
             local player = game.Players.LocalPlayer
-            local char = player.Character or player.CharacterAdded:Wait()
-            local conn
+            local char = player and (player.Character or player.CharacterAdded:Wait())
+            local RunService = game:GetService("RunService")
+
             if state then
                 OrionLib:MakeNotification({
                     Name = "Noclip",
                     Content = "✅ Đã bật Noclip",
                     Time = 2
                 })
-                conn = game:GetService("RunService").Stepped:Connect(function()
-                    for _,v in pairs(char:GetDescendants()) do
+                if noclipConn then noclipConn:Disconnect() noclipConn = nil end
+                if noclipCharAncestryConn then noclipCharAncestryConn:Disconnect() noclipCharAncestryConn = nil end
+
+                noclipConn = RunService.Stepped:Connect(function()
+                    if not char or not char.Parent then return end
+                    for _, v in pairs(char:GetDescendants()) do
                         if v:IsA("BasePart") then
                             v.CanCollide = false
                         end
                     end
                 end)
-                char.AncestryChanged:Connect(function(_, parent)
-                    if not parent and conn then conn:Disconnect() end
+
+                noclipCharAncestryConn = char.AncestryChanged:Connect(function(_, parent)
+                    if not parent then
+                        if noclipConn then noclipConn:Disconnect() noclipConn = nil end
+                        if noclipCharAncestryConn then noclipCharAncestryConn:Disconnect() noclipCharAncestryConn = nil end
+                    end
                 end)
             else
                 OrionLib:MakeNotification({
@@ -86,12 +98,15 @@ pcall(function()
                     Content = "❌ Đã tắt Noclip",
                     Time = 2
                 })
-                if conn then conn:Disconnect() end
+                if noclipConn then noclipConn:Disconnect() noclipConn = nil end
+                if noclipCharAncestryConn then noclipCharAncestryConn:Disconnect() noclipCharAncestryConn = nil end
             end
         end
     })
 
     local infJump = false
+    local infJumpConn = nil
+
     Main:AddToggle({
         Name = "🌀 Infinite Jump",
         Default = false,
@@ -103,12 +118,23 @@ pcall(function()
                 Time = 2
             })
             local plr = game.Players.LocalPlayer
-            local UIS = game:GetService("UserInputService")
-            UIS.JumpRequest:Connect(function()
-                if infJump and plr.Character and plr.Character:FindFirstChildOfClass("Humanoid") then
-                    plr.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
-                end
-            end)
+            local UISService = game:GetService("UserInputService")
+
+            if infJumpConn then
+                infJumpConn:Disconnect()
+                infJumpConn = nil
+            end
+
+            if state then
+                infJumpConn = UISService.JumpRequest:Connect(function()
+                    if infJump and plr and plr.Character then
+                        local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+                        if hum then
+                            hum:ChangeState(Enum.HumanoidStateType.Jumping)
+                        end
+                    end
+                end)
+            end
         end
     })
 
@@ -138,3 +164,7 @@ pcall(function()
 
     OrionLib:Init()
 end)
+
+if not ok then
+    warn("Lỗi khi chạy script Soliar Hub:", err)
+end
